@@ -1,0 +1,154 @@
+{
+  "name": "Gestión de errores",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "d52bbd0d-3e8d-4dd2-930c-261bd953259a",
+      "name": "Capturar Erorres"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "caf98308-a5dd-4dff-815d-3b0bd2c1d929",
+              "name": "mensaje",
+              "value": "=Hola se produjo un error en el workflow {{ $json.execution.url }}\nAqui tienes el enlace del mismo{{ $json.execution.url }}\nEl error fue el siguenete: {{ $json.execution.error.message }}\nEl ultimo nodo ejecutado sin error fue el siguiente:{{ $json.execution.lastNodeExecuted }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "ea25bea8-45f1-4ae7-81e4-b80adbb376cf",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "sendTo": "datascience.me377@gmail.com",
+        "subject": "=Error en el worflow {{ $('Capturar Erorres').item.json.workflow.name }}",
+        "message": "={{ $json.mensaje }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "ba33eb5d-93b0-4c0e-bbbf-c4b2ad6b5bd2",
+      "name": "Enviamos el mensaje con el error",
+      "webhookId": "0abf0960-d2c4-42ca-b11e-c57fff531110",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "BEWZngAMlogF57ZF",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1Y1Geg_2Vvue-RMIZBirPQqmWnpYlLVydifea1W7A9pk/edit?gid=1209162863#gid=1209162863",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Errores",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Id_Error",
+              "lookupValue": "={{ $json.id }}"
+            },
+            {
+              "lookupColumn": "Mensaje",
+              "lookupValue": "={{ $('Edit Fields').item.json.mensaje }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        416,
+        192
+      ],
+      "id": "f94ced33-c2a7-4e6c-9791-ce6bdac8bc26",
+      "name": "Historial de errores",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "X2g39h4SnijL0Dmd",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Capturar Erorres": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Enviamos el mensaje con el error",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Historial de errores",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviamos el mensaje con el error": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "errorWorkflow": "paMIwFibAHlcdLsyOVR1G",
+    "callerPolicy": "workflowsFromSameOwner",
+    "binaryMode": "separate"
+  },
+  "versionId": "14cca22d-db2a-400c-ae9a-e75abb50a100",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5b2f40c2aaa10d5a8b7abb8aef86a04e2cec1c3db69c93309d00672d6e994589"
+  },
+  "id": "paMIwFibAHlcdLsyOVR1G",
+  "tags": []
+}
