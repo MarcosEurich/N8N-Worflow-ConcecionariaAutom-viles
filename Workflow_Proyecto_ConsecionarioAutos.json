@@ -1,0 +1,1121 @@
+{
+  "name": "Proyecto Final",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Consulta de Automóviles",
+        "formDescription": "Consulta la disponibilidad, costos y datos técnicos del automóvil que requieres o sea de tu interés.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Nombre"
+            },
+            {
+              "fieldLabel": "Apellido"
+            },
+            {
+              "fieldLabel": "email",
+              "fieldType": "email"
+            },
+            {
+              "fieldLabel": "Consulta",
+              "fieldType": "textarea"
+            }
+          ]
+        },
+        "options": {
+          "buttonLabel": "Enviar"
+        }
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.5,
+      "position": [
+        0,
+        0
+      ],
+      "id": "ca5ddb00-745c-44e2-b919-b7c996380ec4",
+      "name": "Formulario de Consulta",
+      "webhookId": "5f576f4b-f30e-4bd8-9a39-d589d405edba"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Eres un Experto Clasificador de Leads para una concesionaria de autos. Tu trabajo es leer el mensaje del usuario y estructurar la información en formato JSON estricto.\n\nENTRADA:\n\"{{ $('Formulario de Consulta').item.json.Consulta }}\"\n\nTU MISIÓN:\n1. Detectar la INTENCIÓN: ¿Quiere comprar (venta) o tiene un problema (reclamo)?\n2. Detectar la CATEGORÍA del vehículo: Basado en el texto o el modelo mencionado.\n\nREGLAS DE INTENCIÓN (Campo \"intencion\"):\n- \"venta\": Si pregunta precio, financiación, stock, \"quiero saber\", \"busco\", \"me interesa\".\n- \"reclamo\": Si menciona demoras, service, taller, garantía, entrega pactada, \"hace meses espero\", estafa, enojo, o ya es cliente con problemas.\n\nREGLAS DE CATEGORÍA (Campo \"tipo_vehiculo\"):\nAnaliza palabras clave y modelos. Si es un reclamo y no menciona auto, pon \"null\".\n- \"Pick-up\": Hilux, Amarok, Ranger, Alaskan, Frontier, S10, \"chata\", \"camioneta de trabajo\", 4x4, carga.\n- \"Sedan\": Cronos, Corolla, Etios (4 puertas), Vento, Virtus, Yaris (sedan), Logan, \"auto\", \"coche\", \"remis\", \"viaje\".\n- \"SUV\": Tracker, Corolla Cross, SW4, Taos, T-Cross, Renegade, Compass, \"camioneta familiar\", \"jeep\".\n- \"Hatchback\": Polo, Gol, Trend, Etios (5 puertas), 208, Sandero, Onix, \"auto chico\", \"primer auto\".\n- \"Desconocido\": Si pide motos, camiones, o no se puede determinar.\n\nFORMATO DE SALIDA (JSON ÚNICO):\nDebes responder SIEMPRE con este objeto JSON exacto, sin texto antes ni después.\n\n{\n  \"intencion\": \"consulta\" o \"reclamo\",\n  \"tipo_vehiculo\": \"Categoría exacta o null\"\n}\n\nEJEMPLOS DE RAZONAMIENTO:\n- User: \"Hola, precio de la Amarok v6\" -> {\"intencion\": \"venta\", \"tipo_vehiculo\": \"Pick-up\"}\n- User: \"Mi auto hace un ruido raro, quiero turno\" -> {\"intencion\": \"reclamo\", \"tipo_vehiculo\": \"null\"}\n- User: \"Busco un auto para la familia, tipo Tracker\" -> {\"intencion\": \"venta\", \"tipo_vehiculo\": \"SUV\"}\n- User: \"Es una vergüenza, no me entregan el Cronos\" -> {\"intencion\": \"reclamo\", \"tipo_vehiculo\": \"Sedan\"}\n\nIMPORTANTE:\n-No envies lo que pensaste\n-Envia solo el jason",
+        "options": {
+          "systemMessage": "You are a helpful assistant",
+          "maxIterations": 10
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "48080a75-2252-41e2-b791-c34f3f27e7dd",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Eres \"Carlos\", asesor de ventas.\nVas a escribir un correo para el cliente \n\nTU TAREA:\n1. Saluda amablemente.\n2. Dile que tenemos excelentes noticias sobre su consulta.\n3. A continuación, inserta EXACTAMENTE el resumen de vehículos que recibiste (no lo modifiques, ya está formateado).\n4. Cierra preguntando si quiere financiar alguna de estas opciones.\n\nDATOS A INSERTAR:\nAqui está el resumen de autos (HTML): \n{{ $json.html_resumen }}\n\nIMPORTANTE:\n- Devuelve el resultado en formato HTML completo.\n- No rompas el código HTML que te paso en la variable \"html_resumen\".",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1584,
+        -96
+      ],
+      "id": "e1e3f567-d31d-4f0b-901a-486130241a47",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        1376,
+        112
+      ],
+      "id": "ecb692df-118b-4c49-ac3a-2db3b5088ed6",
+      "name": "Ollama Chat Model1",
+      "credentials": {
+        "ollamaApi": {
+          "id": "QG6COtB21LkFd10n",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Recuperamos todos los autos encontrados y datos del cliente\nconst autos = items.map(item => item.json);\nconst datosCliente = $('Formulario de Consulta').first().json; // Ajusta el nombre si tu formulario se llama distinto\n\n// 2. Preparamos las listas para el Excel (AQUÍ ESTÁ LA MAGIA)\n// .join(\", \") convierte la lista [1, 2] en el texto \"1, 2\"\nconst listaIDs = autos.map(a => a.ID_Auto).join(\", \");\nconst listaModelos = autos.map(a => a.Marca + \" \" + a.Modelo).join(\", \");\n\n// 3. Generamos el HTML (Tu lógica visual)\nlet htmlContent = `<div style=\"font-family: Arial, sans-serif; color: #333;\">`;\nhtmlContent += `<h3>Hola ${datosCliente.Nombre}, encontramos ${autos.length} opción(es):</h3>`;\n\nautos.forEach(auto => {\n  htmlContent += `\n    <div style=\"border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px;\">\n      <h2 style=\"color: #d32f2f; margin: 0;\">${auto.Marca} ${auto.Modelo}</h2>\n      <p><strong>Precio:</strong> $${auto.Valor}</p>\n      <div style=\"background-color: #f9f9f9; padding: 10px; font-size: 0.9em;\">\n         Motor: ${auto.Motor} | Año: ${auto.Anio || 'N/A'}\n      </div>\n    </div>\n  `;\n});\nhtmlContent += `</div>`;\n\n// 4. Salida consolidada (Un solo item con todo listo)\nreturn [{\n  json: {\n    email_destinatario: datosCliente.email,\n    nombre_cliente: datosCliente.Nombre,\n    consulta_original: datosCliente.Consulta,\n    html_resumen: htmlContent,\n    hay_stock: autos.length > 0,\n    \n    // VARIABLES NUEVAS PARA TU HISTORIAL\n    ids_guardar: listaIDs,       // Ej: \"1, 5\"\n    modelos_guardar: listaModelos // Ej: \"VW Vento, Ford Focus\"\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1168,
+        -96
+      ],
+      "id": "1bbc0494-7deb-4bc1-9ad6-ad66562b84a7",
+      "name": "Agrupación de opciones"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Eres un experto analista de créditos.\nAnaliza el SIGUIENTE CORREO (ignora las cadenas de respuestas antiguas o firmas legales al final):\n\nASUNTO: \"{{ $json.headers.subject }}\"\nMENSAJE COMPLETO:\n\"{{ $json.text }}\"  \n\nTU MISIÓN:\n1. Detectar el MODELO de auto que menciona el cliente en SU ÚLTIMA RESPUESTA. Pueden ser mas de un modelo.\n\nEJEMPLOS:\n-Ford Ranger...\n-Toyota Hilux...\n-Toyota Corolla\n-Vento\n-Polo\n\n2. Detectar INTENCIÓN de venta.\n   - Si pregunta precio, cuotas, o dice \"sí quiero\", es TRUE.\n\nResponde ESTRICTAMENTE este JSON:\n{\n  \"modelo_detectado\": \"...\",\n  \"interes_financiacion\": true\n}\n\nIMPORTANTE:\n-No escribas como pensas la logica\n-Solo limitate a responder el JSON\n-No escribas comentarios extras",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        176,
+        544
+      ],
+      "id": "6de2ddaf-5705-402c-bda8-42685f78a0f6",
+      "name": "AI Agent2"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        48,
+        752
+      ],
+      "id": "2d4553bc-c461-4c3b-bfaf-776d5c335ee8",
+      "name": "Ollama Chat Model2",
+      "credentials": {
+        "ollamaApi": {
+          "id": "QG6COtB21LkFd10n",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1Y1Geg_2Vvue-RMIZBirPQqmWnpYlLVydifea1W7A9pk/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Autos",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1184,
+        544
+      ],
+      "id": "9b08e1cf-dea5-4154-8bdc-aba3035ce16c",
+      "name": "Buscar Autos",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "X2g39h4SnijL0Dmd",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// --- CONFIGURACIÓN IMPORTANTE ---\n\n\nconst NOMBRE_NODO_AUTOS = 'Filtro de Auto Inteligente'; \n// -------------------------------\n\nreturn items.map((item, index) => {\n  const datosBanco = item.json;\n  let datosAuto = {};\n\n  // --- MAGIA: RECUPERAR EL AUTO PADRE ---\n  try {\n      // 1. Intentamos buscar el \"padre\" exacto de este banco\n      // (Esta es la forma más precisa en n8n)\n      const itemIndex = item.pairedItem && item.pairedItem.item;\n      \n      if (itemIndex !== undefined) {\n          // Buscamos en el nodo de autos el item que generó esto\n          datosAuto = $(NOMBRE_NODO_AUTOS).itemMatching(itemIndex).json;\n      } else {\n          // 2. Plan B: Si no hay enlace directo, intentamos por posición\n          // (Si es el primer banco, asumimos el primer auto. Riesgoso pero útil de backup)\n          datosAuto = $(NOMBRE_NODO_AUTOS).all()[0].json;\n      }\n  } catch (error) {\n      // 3. Plan C: Si todo falla, intentamos leer lo que sea del nodo autos\n      try { datosAuto = $(NOMBRE_NODO_AUTOS).first().json; } catch(e) {}\n  }\n\n  // --- AHORA SÍ TENEMOS LOS DATOS ---\n  \n  // A. Auto (Usamos || por si las mayúsculas varían)\n  const modelo = datosAuto.Modelo || datosAuto.modelo || \"Modelo Desconocido\";\n  const precioRaw = datosAuto.Valor || datosAuto.valor || datosAuto.Precio || \"0\";\n  \n  // Limpieza del precio (sacamos $ y puntos)\n  const precio = parseFloat(precioRaw.toString().replace(/[^0-9.]/g, '')) || 0;\n\n  // B. Banco\n  const banco = datosBanco.Banco || datosBanco.banco || \"Banco\";\n  \n  // C. Tasa (Limpieza de %, comas, etc)\n  let tasaRaw = datosBanco.Tasa || datosBanco.tasa || datosBanco.TNA || \"0\";\n  let tasa = parseFloat(tasaRaw.toString().replace(',', '.').replace('%', ''));\n  // Si es 55, lo pasamos a 0.55\n  if (tasa > 1) { tasa = tasa / 100; }\n\n  // --- CÁLCULOS ---\n  const plazo = 24; \n  const montoTotal = precio * (1 + tasa);\n  const cuota = montoTotal / plazo;\n\n  return {\n    json: {\n      modelo: modelo,\n      banco: banco,\n      precio_contado: precio,\n      tasa_anual: (tasa * 100).toFixed(0) + \"%\",\n      plazo_meses: plazo,\n      cuota_mensual_final: cuota.toFixed(2)\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2432,
+        416
+      ],
+      "id": "75489ae8-e703-443e-9e12-557acdb96907",
+      "name": "Calculadora de Presupuestos"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1Y1Geg_2Vvue-RMIZBirPQqmWnpYlLVydifea1W7A9pk/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Prestamos",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "ID_Auto",
+              "lookupValue": "={{ $json.ID_Auto }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2208,
+        416
+      ],
+      "id": "30b0e65d-7ecf-4619-b9c6-d1c42af2bfab",
+      "name": "Buscar Prestamos",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "X2g39h4SnijL0Dmd",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1Y1Geg_2Vvue-RMIZBirPQqmWnpYlLVydifea1W7A9pk/edit?gid=523191625#gid=523191625",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Historial_Consultas",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Fecha": "={{ $now }}",
+            "Cliente": "={{ $json.nombre_cliente }}",
+            "Email": "={{ $json.email_destinatario }}",
+            "Stock_Encontrado": "={{ $json.hay_stock }}",
+            "ID_Auto": "={{ $json.ids_guardar }}",
+            "Modelo": "={{ $json.modelos_guardar }}"
+          },
+          "matchingColumns": [
+            "Fecha"
+          ],
+          "schema": [
+            {
+              "id": "Fecha",
+              "displayName": "Fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Cliente",
+              "displayName": "Cliente",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Stock_Encontrado",
+              "displayName": "Stock_Encontrado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ID_Auto",
+              "displayName": "ID_Auto",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Modelo",
+              "displayName": "Modelo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1392,
+        -336
+      ],
+      "id": "f1cb44bb-cbb2-45d2-b7a0-89c034581144",
+      "name": "Historial de Consultas",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "X2g39h4SnijL0Dmd",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Obtenemos el texto sucio que viene del Agente\n// (Asegúrate que 'output' es la variable que trae el texto de la IA)\nconst textoSucio = items[0].json.output || items[0].json.text || \"\";\n\nlet jsonLimpio = {};\n\ntry {\n    // --- CIRUGÍA: EXTRAER SOLO EL JSON ---\n    // Buscamos lo que esté entre la primera llave '{' y la última '}'\n    // Esto ignora todo el texto explicativo de antes o después.\n    const match = textoSucio.match(/\\{[\\s\\S]*\\}/);\n\n    if (match) {\n        // Si encontramos algo con forma de JSON, lo parseamos\n        jsonLimpio = JSON.parse(match[0]);\n    } else {\n        throw new Error(\"No encontré llaves {} en la respuesta de la IA\");\n    }\n\n} catch (error) {\n    // Si falla, usamos valores por defecto para que el flujo no se rompa\n    jsonLimpio = {\n        intencion: \"info\", // Ante la duda, tratamos como info (o cambia a \"reclamo\" si prefieres)\n        tipo_vehiculo: \"Desconocido\",\n        _error_parseo: error.message\n    };\n}\n\n// 2. Normalizamos la salida\nreturn [{\n    json: {\n        intencion: jsonLimpio.intencion || \"info\",\n        tipo_vehiculo: jsonLimpio.tipo_vehiculo || \"Desconocido\",\n        // Pasamos el texto original por si quieres auditarlo\n        _razonamiento_ia: textoSucio \n    }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        544,
+        0
+      ],
+      "id": "8c084739-fc3b-41b1-957b-02f76836c788",
+      "name": "Limpieza de Texto"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.intencion }}",
+                    "rightValue": "=consulta",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "40704094-daa0-4dac-9849-4ef2ffd80fda"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "44d17f7a-9d13-4479-a717-225f05dee582",
+                    "leftValue": "={{ $json.intencion }}",
+                    "rightValue": "=reclamo",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Reclamos"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        752,
+        0
+      ],
+      "id": "334bce9c-2593-488b-8aa6-29170a0419c3",
+      "name": "Consulta o Reclamo"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1Y1Geg_2Vvue-RMIZBirPQqmWnpYlLVydifea1W7A9pk/edit?gid=0#gid=0",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Autos",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "tipo_vehiculo",
+              "lookupValue": "={{ $json.tipo_vehiculo }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        960,
+        -96
+      ],
+      "id": "6c37c580-3860-4b8f-8f32-f41313da1e62",
+      "name": "Tipo de Auto",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "X2g39h4SnijL0Dmd",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "https://docs.google.com/spreadsheets/d/1Y1Geg_2Vvue-RMIZBirPQqmWnpYlLVydifea1W7A9pk/edit?gid=1885637968#gid=1885637968",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Reclamos",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Fecha": "={{ $now }}",
+            "Nombre": "={{ $('Formulario de Consulta').item.json.Nombre }}",
+            "Apellido": "={{ $('Formulario de Consulta').item.json.Apellido }}",
+            "mail": "={{ $('Formulario de Consulta').item.json.email }}",
+            "Mensaje": "={{ $('Formulario de Consulta').item.json.Consulta }}"
+          },
+          "matchingColumns": [
+            "Fecha"
+          ],
+          "schema": [
+            {
+              "id": "Fecha",
+              "displayName": "Fecha",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Nombre",
+              "displayName": "Nombre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Apellido",
+              "displayName": "Apellido",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "mail",
+              "displayName": "mail",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Mensaje",
+              "displayName": "Mensaje",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Estado",
+              "displayName": "Estado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        880,
+        304
+      ],
+      "id": "f731ecd9-4aa0-48c1-8dc4-ee213fc16c59",
+      "name": "Reclamos",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "X2g39h4SnijL0Dmd",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Formulario de Consulta').item.json.email }}",
+        "subject": "=Hemos recibido tu solicitud ",
+        "message": "=<p>Hola {{ $('Formulario de Consulta').item.json.Nombre }},</p> <p>Lamentamos que hayas tenido un inconveniente. Hemos registrado tu mensaje en nuestro sistema de calidad.</p> <p><strong>Tu mensaje original:</strong><br> <i>\"{{ $('Formulario de Consulta').item.json.Consulta }}\"</i></p> <p>Un agente de soporte revisará tu caso y te contactará en las próximas 24 horas.</p> <hr> <small>Atención al Cliente - Concesionaria</small>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1088,
+        304
+      ],
+      "id": "ca85da3e-e101-415f-b82e-092c863c2605",
+      "name": "Mensaje de reclamo recibido",
+      "webhookId": "f860fc49-8034-48c8-aec1-90513cfeb19d",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "BEWZngAMlogF57ZF",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "q": "subject:\"Opciones encontradas para tu consulta\" is:unread -from:me"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -32,
+        544
+      ],
+      "id": "82dfc892-bf7e-4b58-94b1-d0a3cd957ab5",
+      "name": "Finanaciación (Si/No)",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "BEWZngAMlogF57ZF",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Obtenemos el texto sucio de la IA\nconst texto = items[0].json.output || \"\";\n\n// 2. Buscamos dónde empieza y termina el JSON real\nconst inicioJSON = texto.indexOf('{');\nconst finJSON = texto.lastIndexOf('}');\n\nif (inicioJSON !== -1 && finJSON !== -1) {\n  // Cortamos solo la parte que nos interesa\n  const jsonLimpio = texto.substring(inicioJSON, finJSON + 1);\n  \n  try {\n    const datos = JSON.parse(jsonLimpio);\n    \n    // 3. Normalizamos las variables (por si la IA usa nombres distintos)\n    return [{\n      json: {\n        modelo: datos.modelo_detectado || datos.modelo || \"Desconocido\",\n        interes: datos.interes_financiacion || datos.interes || false\n      }\n    }];\n  } catch (error) {\n    // Si el JSON estaba roto\n    return [{ json: { modelo: \"Error JSON\", interes: false } }];\n  }\n}\n\n// Si no encontró llaves, devuelve fallo seguro\nreturn [{ json: { modelo: \"No encontrado\", interes: false } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        528,
+        544
+      ],
+      "id": "c0935cc1-e5cf-4e86-96ff-ef6eef7a1a22",
+      "name": "Definimos si interesa financiar"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.interes }}",
+                    "rightValue": "false",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    },
+                    "id": "8ea9b39f-2686-45c1-831f-aea70ccef48b"
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        768,
+        544
+      ],
+      "id": "d7cebc95-5438-49b1-8d20-b5aeca0434b6",
+      "name": "Le interesa financear"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ba832b95-63f5-4396-a756-bc68044d324d",
+              "leftValue": "={{ $json.ID_Auto }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1776,
+        544
+      ],
+      "id": "afce0820-c4fb-4af9-abb4-a82c52a0104a",
+      "name": "Id_Auto existe?"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Finanaciación (Si/No)').item.json.from.value[0].address }}",
+        "subject": "={{ $('Definimos si interesa financiar').item.json.modelo }}Sobre tu consulta del modelo ",
+        "message": "=<p>Hola,</p> <p>Gracias por tu interés. Buscamos en nuestro sistema el modelo <b>{{ $('Definimos si interesa financiar').item.json.modelo }}</b> pero lamentablemente no contamos con stock en este momento o no pudimos identificarlo correctamente.</p> <p>Por favor, responde a este correo indicando si buscas otro modelo similar.</p> <p>Saludos,<br>El Equipo de Ventas.</p>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2080,
+        640
+      ],
+      "id": "006b81d3-cdee-46ca-9d93-7274494da011",
+      "name": "Mensaje al cliente",
+      "webhookId": "f98cb517-4930-45a7-9668-ea04b742df42",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "BEWZngAMlogF57ZF",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Finanaciación (Si/No)').first().json.from.value[0].address }}",
+        "subject": "=Re: {{ $('Finanaciación (Si/No)').first().json.subject }}",
+        "message": "={{ $json.mensaje_html }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        3072,
+        416
+      ],
+      "id": "51be1c7e-2796-4966-9f32-8d628755d8bb",
+      "name": "Mensaje con presupuestos",
+      "webhookId": "af764d79-a5f7-4e7e-bf5d-dc76431be9bd",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "BEWZngAMlogF57ZF",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Agrupación de opciones').item.json.email_destinatario }}",
+        "subject": "Opciones encontradas para tu consulta",
+        "message": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1936,
+        -80
+      ],
+      "id": "f8022dc4-526e-49cc-94fb-e3a4c0b781a7",
+      "name": "Mensaje con la disponibilidad y datos",
+      "webhookId": "d459a3fa-7a67-4ea4-9ff4-c0ddf5c7e439",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "BEWZngAMlogF57ZF",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1376,
+        -96
+      ],
+      "id": "089dc15b-7841-47e5-8fa8-22829c1fc9f2",
+      "name": "Wait",
+      "webhookId": "50b9262a-ec6d-4264-914a-dc4c2d142664"
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        128,
+        208
+      ],
+      "id": "8adfc0ce-2f25-4dc2-a58c-7939d9794557",
+      "name": "Ollama Chat Model4",
+      "credentials": {
+        "ollamaApi": {
+          "id": "QG6COtB21LkFd10n",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "modelo",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        944,
+        544
+      ],
+      "id": "bc036c7b-d791-47fe-9ea8-42b7964c602f",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "jsCode": "// --- CONFIGURACIÓN ---\n// 1. Nombre EXACTO de tu Calculadora (de donde salen los precios)\nconst NOMBRE_NODO_CALCULADORA = 'Calculadora de Presupuestos';\n\n// 2. Nombre del nodo Gmail (para sacar el nombre del cliente)\nconst NOMBRE_NODO_GMAIL = 'Finanaciación (Si/No)r'; \n// ---------------------\n\n// --- MAGIA: FORZAR LA LECTURA DE TODOS LOS ITEMS ---\n// Usamos .all() para ignorar si vienen de a uno. Queremos TODOS.\nlet opciones = [];\ntry {\n    opciones = $(NOMBRE_NODO_CALCULADORA).all().map(item => item.json);\n} catch (error) {\n    // Si falla, intentamos usar lo que llegó al input normal (Plan B)\n    opciones = items.map(item => item.json);\n}\n\n// Datos del Cliente\nlet clienteNombre = \"Cliente\";\nlet clienteEmail = \"cliente@email.com\";\ntry {\n    const datosGmail = $(NOMBRE_NODO_GMAIL).first().json;\n    if (datosGmail.from) {\n        clienteEmail = datosGmail.from.value?.[0]?.address || datosGmail.from;\n        clienteNombre = datosGmail.from.value?.[0]?.name || \"Cliente\";\n    }\n} catch (e) {}\n\n// --- GENERAR EL HTML (TABLA) ---\nlet htmlFinal = `<div style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;\">`;\n\n// Agregamos un contador en el título para que sepas cuántos encontró\nhtmlFinal += `<h2 style=\"color: #1565C0;\">Hola ${clienteNombre}, encontramos ${opciones.length} opciones para ti:</h2>`;\n\nopciones.forEach(opcion => {\n  // Valores por defecto para evitar errores\n  const modelo = opcion.modelo || \"Vehículo\";\n  const banco = opcion.banco || \"Banco\";\n  \n  // Formato de moneda (Argentina)\n  const formatear = (val) => parseFloat(val || 0).toLocaleString('es-AR', {minimumFractionDigits: 2});\n  \n  const precio = formatear(opcion.precio_contado);\n  const cuota = formatear(opcion.cuota_mensual_final);\n  const tasa = opcion.tasa_anual || \"Consultar\";\n\n  htmlFinal += `\n    <div style=\"border: 1px solid #ccc; margin-bottom: 20px; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);\">\n      <div style=\"background-color: #0D47A1; color: white; padding: 12px 20px;\">\n        <h3 style=\"margin: 0; font-size: 1.2em;\">${modelo}</h3>\n        <span style=\"font-size: 0.9em; opacity: 0.9;\">${banco} • Tasa: ${tasa}</span>\n      </div>\n      <div style=\"padding: 20px; background-color: #f5f5f5;\">\n        <div style=\"display: flex; justify-content: space-between; margin-bottom: 10px;\">\n           <span>Precio Contado:</span>\n           <strong>$${precio}</strong>\n        </div>\n        <div style=\"display: flex; justify-content: space-between; margin-bottom: 15px;\">\n           <span>Plazo:</span>\n           <strong>${opcion.plazo_meses} meses</strong>\n        </div>\n        <div style=\"background-color: #fff; padding: 15px; text-align: center; border: 2px dashed #0D47A1; border-radius: 4px;\">\n          <small style=\"color: #555; text-transform: uppercase; font-weight: bold;\">Cuota Mensual Final</small>\n          <div style=\"color: #D32F2F; font-size: 1.8em; font-weight: bold; margin-top: 5px;\">$${cuota}</div>\n        </div>\n      </div>\n    </div>\n  `;\n});\n\nhtmlFinal += `<p style=\"text-align: center; font-size: 0.8em; color: #888;\">*Sujeto a aprobación crediticia.</p></div>`;\n\n// Retornamos 1 solo item con todo el HTML junto\nreturn [{\n  json: {\n    email_destino: clienteEmail,\n    asunto: `¡Listo! Aquí tienes tus ${opciones.length} opciones de financiación`,\n    mensaje_html: htmlFinal\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2832,
+        416
+      ],
+      "id": "b6a6ed2c-d7df-4586-b334-e0aa7358034f",
+      "name": "Resumen Calculadora",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// --- CONFIGURACIÓN ---\nconst NOMBRE_NODO_SPLIT = 'Split Out'; \n// ---------------------\n\nconst baseDeDatos = items.map(item => item.json);\nlet busquedas = [];\ntry {\n    busquedas = $(NOMBRE_NODO_SPLIT).all().map(item => item.json.modelo);\n} catch (e) {\n    try { busquedas = [ $(NOMBRE_NODO_SPLIT).first().json.modelo ]; } catch(err) {}\n}\n\nfunction limpiar(texto) {\n    return (texto || \"\").toLowerCase().normalize(\"NFD\").replace(/[\\u0300-\\u036f]/g, \"\").trim();\n}\n\nconst resultadosFinales = [];\n\nbusquedas.forEach(busquedaOriginal => {\n    if (!busquedaOriginal) return;\n\n    const palabrasBuscadas = limpiar(busquedaOriginal).split(\" \");\n    \n    // Buscamos el mejor candidato en la DB\n    const autoEncontrado = baseDeDatos.find(auto => {\n        const nombreAutoDB = limpiar(auto.Modelo || auto.modelo); \n        \n        let coincidencias = 0;\n        let palabrasMatch = [];\n        \n        palabrasBuscadas.forEach(palabra => {\n            if (palabra.length > 2 && nombreAutoDB.includes(palabra)) {\n                coincidencias++;\n                palabrasMatch.push(palabra);\n            }\n        });\n\n        // --- MODO ULTRA SENSIBLE ---\n        // Si coincide AL MENOS 1 palabra importante (ej: \"Toyota\"), lo aceptamos.\n        const esMatch = coincidencias >= 1; \n\n        if (esMatch) {\n            // Guardamos info de por qué hizo match para que lo veas\n            auto._diagnostico = `Busqué: '${busquedaOriginal}' | Encontré: '${auto.Modelo}' | Coincidieron: ${palabrasMatch.join(\", \")}`;\n        }\n        \n        return esMatch;\n    });\n\n    if (autoEncontrado) {\n        resultadosFinales.push({ json: autoEncontrado });\n    }\n});\n\n// Eliminamos duplicados\nconst unicos = [...new Map(resultadosFinales.map(item => [item.json.ID_Auto, item])).values()];\n\nreturn unicos;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1392,
+        544
+      ],
+      "id": "9cbf4c1d-20ee-435a-ac97-e642ea424e1e",
+      "name": "Filtro de Auto Inteligente",
+      "executeOnce": false
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Formulario de Consulta": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Limpieza de Texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agrupación de opciones": {
+      "main": [
+        [
+          {
+            "node": "Historial de Consultas",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Mensaje con la disponibilidad y datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent2": {
+      "main": [
+        [
+          {
+            "node": "Definimos si interesa financiar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Autos": {
+      "main": [
+        [
+          {
+            "node": "Filtro de Auto Inteligente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Prestamos": {
+      "main": [
+        [
+          {
+            "node": "Calculadora de Presupuestos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculadora de Presupuestos": {
+      "main": [
+        [
+          {
+            "node": "Resumen Calculadora",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limpieza de Texto": {
+      "main": [
+        [
+          {
+            "node": "Consulta o Reclamo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consulta o Reclamo": {
+      "main": [
+        [
+          {
+            "node": "Tipo de Auto",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reclamos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tipo de Auto": {
+      "main": [
+        [
+          {
+            "node": "Agrupación de opciones",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reclamos": {
+      "main": [
+        [
+          {
+            "node": "Mensaje de reclamo recibido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finanaciación (Si/No)": {
+      "main": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Definimos si interesa financiar": {
+      "main": [
+        [
+          {
+            "node": "Le interesa financear",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Le interesa financear": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Id_Auto existe?": {
+      "main": [
+        [
+          {
+            "node": "Buscar Prestamos",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mensaje al cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model4": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Buscar Autos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resumen Calculadora": {
+      "main": [
+        [
+          {
+            "node": "Mensaje con presupuestos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtro de Auto Inteligente": {
+      "main": [
+        [
+          {
+            "node": "Id_Auto existe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "timezone": "America/Argentina/Buenos_Aires",
+    "callerPolicy": "workflowsFromSameOwner",
+    "binaryMode": "separate",
+    "errorWorkflow": "paMIwFibAHlcdLsyOVR1G"
+  },
+  "versionId": "647e8640-ee96-4e5e-8002-b8e9bc98559b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5b2f40c2aaa10d5a8b7abb8aef86a04e2cec1c3db69c93309d00672d6e994589"
+  },
+  "id": "Q3uJHPwu2MjKEG_27Fp70",
+  "tags": []
+}
